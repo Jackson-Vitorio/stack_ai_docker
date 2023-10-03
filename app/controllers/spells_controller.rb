@@ -9,7 +9,7 @@ class SpellsController < ApplicationController
       response = RestClient.get "https://www.dnd5eapi.co/api/spells/#{spell_name}"
       data = JSON.parse(response.body)
 
-      yandex_key = 'trnsl.1.1.20231003T122440Z.fced65d2902f6ce2.978b862b78445da0c72f0366ddfa549f43eb0d90' # Substitua pelo seu próprio chave de API Yandex.Translate
+      yandex_key = 'trnsl.1.1.20231003T122440Z.fced65d2902f6ce2.978b862b78445da0c72f0366ddfa549f43eb0d90' 
       translator = Yandex::Translator.new(yandex_key)
 
       description = data['desc'][0]

@@ -30,6 +30,12 @@ gem "jbuilder"
 # Server
 gem "thin"
 
+# adicionais
+gem 'rest-client'
+
+gem 'yandex-translator'
+
+
 # Use Redis adapter to run Action Cable in production
 gem "redis", "~> 4.0"
 

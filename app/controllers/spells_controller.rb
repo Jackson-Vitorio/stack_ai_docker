@@ -15,12 +15,20 @@ class SpellsController < ApplicationController
 
     description = data['desc'][0]
     translated_description = translator.translate(description, from: 'en', to: 'pt')
-
-    material = data['material']
-    translated_material = translator.translate(material, from: 'en', to: 'pt')
-
     casting_time = data['casting_time']
     translated_casting_time = translator.translate(casting_time, from: 'en', to: 'pt')
+    if data.include?('components')
+      material = data['material']
+      begin
+        translated_material = translator.translate(material, from: 'en', to: 'pt')
+      rescue
+        puts 'Erro de tradução'
+        translated_material = material
+      end
+    else
+      material = 'Não há material'
+      translated_material = material
+    end
 
     @spell_data = {
       'name' => data['name'],
@@ -43,30 +51,37 @@ class SpellsController < ApplicationController
     yandex_key = 'trnsl.1.1.20231003T122440Z.fced65d2902f6ce2.978b862b78445da0c72f0366ddfa549f43eb0d90'
     translator = Yandex::Translator.new(yandex_key)
 
-    name = data['name']
-    translated_name = translator.translate(name, from: 'en', to: 'pt')
+ 
+    translated_name = translator.translate(data['name'], from: 'en', to: 'pt')
+    translated_size = translator.translate(data['size'], from: 'en', to: 'pt')
+    translated_type = translator.translate(data['type'], from: 'en', to: 'pt')
 
-    size = data['size']
-    translated_size = translator.translate(size, from: 'en', to: 'pt')
-
-    type = data['type']
-    translated_type = translator.translate(type, from: 'en', to: 'pt')
-
-    armor_class = data['armor_class']
+    armor = data['armor_class']
+    armor_class = armor[0]['value']
 
     hit_points = data['hit_points']
 
-    actions = data['actions']
-    translated_actions = []
+    proficiencies = data['proficiencies'].map do |proficiency_data|
+      value = proficiency_data['value']
+      proficiency_name = proficiency_data['proficiency']['name']
+      translated_proficiency_name = translator.translate(proficiency_name, from: 'en', to: 'pt')
+      { 'value' => value, 'proficiency_name' => translated_proficiency_name }
+    end
 
-    if actions.present?
-      translated_actions = actions.map do |action|
-        action_name = action['name']
-        translated_action_name = translator.translate(action_name, from: 'en', to: 'pt')
-        action_description = action['desc'] # Não usamos join nesta versão
-        translated_action_description = translator.translate(action_description, from: 'en', to: 'pt')
-        "#{translated_action_name}: #{translated_action_description}"
-      end
+    special_abilities = data['special_abilities'].map do |ability_data|
+      name = ability_data['name']
+      translated_ability_name = translator.translate(name, from: 'en', to: 'pt')
+      desc = ability_data['desc']
+      translated_desc = translator.translate(desc, from: 'en', to: 'pt')
+      { 'name' => translated_ability_name, 'desc' => translated_desc }
+    end
+
+    actions = data['actions'].map do |action_data|
+      name = action_data['name']
+      translated_action_name = translator.translate(name, from: 'en', to: 'pt')
+      desc = action_data['desc']
+      translated_action_desc = translator.translate(desc, from: 'en', to: 'pt')
+      { 'name' => translated_action_name, 'desc' => translated_action_desc }
     end
 
     @monster_data = {
@@ -75,7 +90,9 @@ class SpellsController < ApplicationController
       'type' => translated_type,
       'armor_class' => armor_class,
       'hit_points' => hit_points,
-      'actions' => translated_actions
+      'proficiencies' => proficiencies,
+      'special_abilities' => special_abilities,
+      'actions' => actions
     }
 
     render 'monstros'

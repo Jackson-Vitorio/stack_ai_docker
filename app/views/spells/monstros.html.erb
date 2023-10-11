@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Título da Página</title>
+    <title>Pesquisar Monstros</title>
 </head>
 <link rel="stylesheet" href="spells/styles">
 <body>
@@ -22,11 +22,31 @@
   <p><strong>Armadura:</strong> <%= @monster_data['armor_class'] %></p>
   <p><strong>Pontos de Vida:</strong> <%= @monster_data['hit_points'] %></p>
 
+  <% if @monster_data.key?('proficiencies') %>
+    <h3>Proficiências</h3>
+    <ul>
+      <% @monster_data['proficiencies'].each do |proficiency| %>
+        <li><strong><%= proficiency['value'] %></strong>: <%= proficiency['proficiency_name'] %></li>
+      <% end %>
+    </ul>
+  <% end %>
+
+  <% if @monster_data.key?('special_abilities') %>
+    <h3>Habilidades Especiais</h3>
+    <ul>
+      <% @monster_data['special_abilities'].each do |ability| %>
+        <li><strong><%= ability['name'] %></strong></li>
+        <p><%= ability['desc'] %></p>
+      <% end %>
+    </ul>
+  <% end %>
+
   <% if @monster_data.key?('actions') %>
     <h3>Ações</h3>
     <ul>
       <% @monster_data['actions'].each do |action| %>
-        <li><%= action['name'] %></li>
+        <li><strong><%= action['name'] %></strong></li>
+        <p><%= action['desc'] %></p>
       <% end %>
     </ul>
   <% end %>

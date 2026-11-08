@@ -63,7 +63,7 @@ services:
     container_name: open-webui
     restart: unless-stopped
     ports:
-      - "${WEBUI_PORT:-3000}:3000"
+      - "3000:8080"  # Corrigido: Open Web UI roda na porta 8080 dentro do container
     environment:
       - OPENAI_API_BASE_URL=http://omniroute:20129/v1
       - OPENAI_API_KEY=dummy

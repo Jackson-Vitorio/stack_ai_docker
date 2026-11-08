@@ -78,11 +78,14 @@ services:
     image: ghcr.io/all-hands-ai/openhands:latest
     container_name: openhands
     restart: unless-stopped
-    working_dir: /workspace
+    working_dir: /app
     # SÓ esta pasta é visível para o agente — ele não toca o resto do sistema
+    ports:
+      - "3001:3000"
     volumes:
       - ./projetos:/workspace:rw
       - openhands-deps:/home/opendands/.local
+      - ./openhands-data:/.openhands
     read_only: true
     tmpfs:
       - /tmp

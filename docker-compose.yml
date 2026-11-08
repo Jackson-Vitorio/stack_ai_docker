@@ -20,6 +20,7 @@ services:
       - LIVE_WS_HOST=0.0.0.0
       - REDIS_URL=redis://redis:6379
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
       - ./data/omniroute:/app/data
     depends_on:
       - redis
@@ -32,6 +33,7 @@ services:
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
       - redis-data:/data
 
   # ── Qdrant (memória vetorial, usada pelo OmniRoute) ───────────────
@@ -43,6 +45,7 @@ services:
       - "${QDRANT_PORT:-6333}:6333"
       - "${QDRANT_GRPC_PORT:-6334}:6334"
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
       - qdrant-data:/qdrant/storage
 
   # ── Akita AI Memory (memória de contexto + servidor MCP) ─────────
@@ -55,6 +58,7 @@ services:
     environment:
       - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN:-troque-por-um-token-secreto}
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
       - akita-data:/data
 
   # ── Open Web UI (interface de chat no navegador) ──────────────────
@@ -69,6 +73,7 @@ services:
       - OPENAI_API_KEY=dummy
       - ENABLE_OAUTH_SIGNUP=false
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
       - open-webui-data:/app/backend/data
     depends_on:
       - omniroute
@@ -83,6 +88,7 @@ services:
     ports:
       - "3001:3000"
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
       - ./projetos:/workspace:rw
       - openhands-deps:/home/opendands/.local
       - ./openhands-data:/.openhands

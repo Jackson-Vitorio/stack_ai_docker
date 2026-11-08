@@ -1,3 +1,62 @@
+services:
+  # ── OmniRoute (roteador de LLMs, API OpenAI-compatível) ───────────
+  # Usa a imagem oficial já buildada do GHCR para evitar build local
+  omniroute:
+    image: diegosouzapw/omniroute:3.8.49
+    container_name: omniroute
+    restart: unless-stopped
+    ports:
+      - "${PORT:-20128}:20128"
+      - "${API_PORT:-20129}:20129"
+      - "${LIVE_WS_PORT:-20132}:20132"
+    environment:
+      - DATA_DIR=/app/data
+      - OMNIROUTE_BASE_PATH=${OMNIROUTE_BASE_PATH:-}
+      - PORT=20128
+      - DASHBOARD_PORT=20128
+      - API_PORT=20129
+      - API_HOST=0.0.0.0
+      - LIVE_WS_PORT=20132
+      - LIVE_WS_HOST=0.0.0.0
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./data/omniroute:/app/data
+    depends_on:
+      - redis
+
+  # ── Redis (obrigatório pelo OmniRoute) ────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+
+  # ── Qdrant (memória vetorial, usada pelo OmniRoute) ───────────────
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    restart: unless-stopped
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+
+  # ── Akita AI Memory (memória de contexto + servidor MCP) ─────────
+  akita-ai-memory:
+    image: akitaonrails/ai-memory:latest
+    container_name: akita-ai-memory
+    restart: unless-stopped
+    ports:
+      - "${AI_MEMORY_PORT:-49374}:49374"
+    environment:
+      - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN:-troque-por-um-token-secreto}
+    volumes:
+      - akita-data:/data
+
   # ── Open Web UI (interface de chat no navegador) ──────────────────
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
@@ -16,10 +75,9 @@
 
   # ── OpenHands (agente autônomo de programação, isolado) ───────────
   openhands:
-    image: docker.io/openhands/openhands:latest
+    image: ghcr.io/all-hands-ai/openhands:latest
     container_name: openhands
     restart: unless-stopped
-    user: "1000:1000"
     working_dir: /workspace
     # SÓ esta pasta é visível para o agente — ele não toca o resto do sistema
     volumes:
@@ -28,7 +86,6 @@
     read_only: true
     tmpfs:
       - /tmp
-      - /workspace
     cap_drop:
       - ALL
     cap_add:
@@ -40,3 +97,10 @@
       - LLM_API_KEY=dummy
     depends_on:
       - omniroute
+
+volumes:
+  redis-data:
+  qdrant-data:
+  akita-data:
+  open-webui-data:
+  openhands-deps:

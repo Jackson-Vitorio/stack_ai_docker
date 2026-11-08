@@ -52,3 +52,6 @@ Thumbs.db
 *.dockerignore
 
 # ──────────────────────────────────────────────────────────────
+# ── Workspace do agente OpenHands (não versionar trabalho) ────
+projetos/
+openhands-data/

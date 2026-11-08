@@ -19,6 +19,7 @@ services:
       - LIVE_WS_PORT=20132
       - LIVE_WS_HOST=0.0.0.0
       - REDIS_URL=redis://redis:6379
+      - STORAGE_ENCRYPTION_KEY=${STORAGE_ENCRYPTION_KEY}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./data/omniroute:/app/data
@@ -90,11 +91,13 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./projetos:/workspace:rw
-      - openhands-deps:/home/opendands/.local
+      - openhands-deps:/home/openhands/.local
       - ./openhands-data:/.openhands
-    read_only: true
+      - /usr/bin/docker:/usr/bin/docker:ro
     tmpfs:
       - /tmp
+      - /var/lib/docker
+      - /var/lib/apt/lists
     cap_drop:
       - ALL
     cap_add:
@@ -104,6 +107,14 @@ services:
       - LLM_API_BASE=http://omniroute:20129/v1
       - LLM_MODEL=gpt-4o-mini
       - LLM_API_KEY=dummy
+      - SANDBOX_TYPE=docker
+      # IMPORTANTE: em OpenHands 0.59.0 a imagem do runtime nao e lida via
+      # variavel de ambiente. Ela deve ser definida em Settings
+      # (sandbox_runtime_container_image). Ja foi definida via API para
+      # ghcr.io/all-hands-ai/runtime:latest (imagem ja baixada) e persistida
+      # em openhands-data/settings.json. Isso evita o build local do runtime
+      # que travava em "Building Runtime..." (falha no apt-get update).
+      - SANDBOX_RUNTIME_IMAGE=ghcr.io/all-hands-ai/runtime:latest
     depends_on:
       - omniroute
 

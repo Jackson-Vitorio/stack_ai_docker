@@ -1,27 +1,36 @@
+# docker-compose.yml
+# Todos os segredos vêm do arquivo .env (mesma pasta deste arquivo).
+# Nunca commite o .env. Use o .env.example como modelo.
+#
+# Mudanças de segurança em relação à versão anterior:
+#  - /var/run/docker.sock removido de todos os serviços
+#  - portas publicadas só em 127.0.0.1 (nada exposto à rede local)
+#  - Redis com senha
+#  - open-code enxerga só a pasta projetos (antes via a pasta inteira, incluindo o .env)
+#  - chaves, tokens e senhas movidos para o .env
+
 services:
-  # ── OmniRoute (roteador de LLMs, API OpenAI-compatível) ───────────
-  # Usa a imagem oficial já buildada do GHCR para evitar build local
+  # ── OmniRoute (roteador de LLMs, API compatível com OpenAI) ───────
   omniroute:
     image: diegosouzapw/omniroute:3.8.49
     container_name: omniroute
     restart: unless-stopped
     ports:
-      - "${PORT:-20128}:20128"
-      - "${API_PORT:-20129}:20129"
-      - "${LIVE_WS_PORT:-20132}:20132"
+      - "127.0.0.1:20128:20128"
+      - "127.0.0.1:20129:20129"
+      - "127.0.0.1:20132:20132"
     environment:
-      - DATA_DIR=/app/data
-      - OMNIROUTE_BASE_PATH=${OMNIROUTE_BASE_PATH:-}
-      - PORT=20128
-      - DASHBOARD_PORT=20128
-      - API_PORT=20129
-      - API_HOST=0.0.0.0
-      - LIVE_WS_PORT=20132
-      - LIVE_WS_HOST=0.0.0.0
-      - REDIS_URL=redis://redis:6379
-      - STORAGE_ENCRYPTION_KEY=${STORAGE_ENCRYPTION_KEY}
+      DATA_DIR: /app/data
+      OMNIROUTE_BASE_PATH: ""
+      PORT: "20128"
+      DASHBOARD_PORT: "20128"
+      API_PORT: "20129"
+      API_HOST: 0.0.0.0
+      LIVE_WS_PORT: "20132"
+      LIVE_WS_HOST: 0.0.0.0
+      REDIS_URL: redis://:${REDIS_PASSWORD:?defina REDIS_PASSWORD no .env}@redis:6379
+      STORAGE_ENCRYPTION_KEY: ${STORAGE_ENCRYPTION_KEY:?defina STORAGE_ENCRYPTION_KEY no .env}
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - ./data/omniroute:/app/data
     depends_on:
       - redis
@@ -31,90 +40,69 @@ services:
     image: redis:7-alpine
     container_name: redis
     restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?defina REDIS_PASSWORD no .env}"]
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - redis-data:/data
 
-  # ── Qdrant (memória vetorial, usada pelo OmniRoute) ───────────────
+  # ── Qdrant (memória vetorial) ─────────────────────────────────────
   qdrant:
     image: qdrant/qdrant:latest
     container_name: qdrant
     restart: unless-stopped
     ports:
-      - "${QDRANT_PORT:-6333}:6333"
-      - "${QDRANT_GRPC_PORT:-6334}:6334"
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - qdrant-data:/qdrant/storage
 
-  # ── Akita AI Memory (memória de contexto + servidor MCP) ─────────
+  # ── Akita AI Memory (memória de contexto + servidor MCP) ──────────
   akita-ai-memory:
     image: akitaonrails/ai-memory:latest
     container_name: akita-ai-memory
     restart: unless-stopped
     ports:
-      - "${AI_MEMORY_PORT:-49374}:49374"
+      - "127.0.0.1:49374:49374"
     environment:
-      - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN:-troque-por-um-token-secreto}
+      AI_MEMORY_AUTH_TOKEN: ${AI_MEMORY_AUTH_TOKEN:?defina AI_MEMORY_AUTH_TOKEN no .env}
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - akita-data:/data
 
-  # ── Open Web UI (interface de chat no navegador) ──────────────────
+  # ── Open WebUI (chat no navegador) ────────────────────────────────
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
     container_name: open-webui
     restart: unless-stopped
     ports:
-      - "3000:8080"  # Corrigido: Open Web UI roda na porta 8080 dentro do container
+      - "127.0.0.1:3000:8080"
     environment:
-      - OPENAI_API_BASE_URL=http://omniroute:20129/v1
-      - OPENAI_API_KEY=dummy
-      - ENABLE_OAUTH_SIGNUP=false
+      OPENAI_API_BASE_URL: http://omniroute:20129/v1
+      OPENAI_API_KEY: ${OMNIROUTE_API_KEY:?defina OMNIROUTE_API_KEY no .env}
+      ENABLE_OAUTH_SIGNUP: "false"
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:?defina WEBUI_SECRET_KEY no .env}
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - open-webui-data:/app/backend/data
     depends_on:
       - omniroute
 
-  # ── OpenHands (agente autônomo de programação, isolado) ───────────
-  openhands:
-    image: ghcr.io/all-hands-ai/openhands:latest
-    container_name: openhands
+  # ── Open Code (agente com interface web) ──────────────────────────
+  # Interface e API na mesma porta: http://localhost:3001
+  # No diálogo "Abrir projeto", use /workspace/projetos
+  open-code:
+    image: ghcr.io/lehhair/opencodeui-backend:latest
+    container_name: open-code
     restart: unless-stopped
-    working_dir: /app
-    # SÓ esta pasta é visível para o agente — ele não toca o resto do sistema
     ports:
-      - "3001:3000"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./projetos:/workspace:rw
-      - openhands-deps:/home/openhands/.local
-      - ./openhands-data:/.openhands
-      - /usr/bin/docker:/usr/bin/docker:ro
-    tmpfs:
-      - /tmp
-      - /var/lib/docker
-      - /var/lib/apt/lists
-    cap_drop:
-      - ALL
-    cap_add:
-      - CHOWN
-      - DAC_OVERRIDE
+      - "127.0.0.1:3001:4096"
     environment:
-      - LLM_API_BASE=http://omniroute:20129/v1
-      - LLM_MODEL=gpt-4o-mini
-      - LLM_API_KEY=dummy
-      - SANDBOX_TYPE=docker
-      # IMPORTANTE: em OpenHands 0.59.0 a imagem do runtime nao e lida via
-      # variavel de ambiente. Ela deve ser definida em Settings
-      # (sandbox_runtime_container_image). Ja foi definida via API para
-      # ghcr.io/all-hands-ai/runtime:latest (imagem ja baixada) e persistida
-      # em openhands-data/settings.json. Isso evita o build local do runtime
-      # que travava em "Building Runtime..." (falha no apt-get update).
-      - SANDBOX_RUNTIME_IMAGE=ghcr.io/all-hands-ai/runtime:latest
+      OMNIROUTE_API_KEY: ${OMNIROUTE_API_KEY:?defina OMNIROUTE_API_KEY no .env}
+      OPENCODE_SERVER_USERNAME: ${OPENCODE_SERVER_USERNAME:?defina OPENCODE_SERVER_USERNAME no .env}
+      OPENCODE_SERVER_PASSWORD: ${OPENCODE_SERVER_PASSWORD:?defina OPENCODE_SERVER_PASSWORD no .env}
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./projetos:/workspace/projetos
     depends_on:
       - omniroute
 
@@ -123,4 +111,3 @@ volumes:
   qdrant-data:
   akita-data:
   open-webui-data:
-  openhands-deps:

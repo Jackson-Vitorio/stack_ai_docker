@@ -1,130 +1,165 @@
 #!/usr/bin/env bash
-# 🌟 INSTALAÇÃO AUTOMÁTICA TOTAL DO STACK IA
-# Configura o OmniRoute com provedores, skills e combos prontos.
-# Automação de Docker, TLS client, correções de permissão e typo.
-set -e
+# 🌟 Configuração automática do Stack IA
+#  - verifica Docker e Docker Compose v2 (não instala nada por conta própria)
+#  - cria as pastas, ajusta permissões e gera os segredos do .env
+#  - sobe o stack e mostra o status
+# Uso (a partir da pasta do projeto):  ./scripts/setup-auto.sh
+set -euo pipefail
 
 STACK_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PROJECT_DIR="/home/jack/Documentos/GitHub/apptest"
 cd "$STACK_DIR"
+source ./scripts/_lib.sh
 
 echo "🔧 Stack IA — Configuração Automática"
 echo "===================================="
 
-# 1. Verificar e instalar Docker se necessário
+# 1. Pré-requisitos ---------------------------------------------------
 echo "🐳 Verificando Docker..."
-if ! command -v docker &> /dev/null; then
-    echo "🔧 Docker não encontrado, instalando..."
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sudo sh get-docker.sh
-    rm get-docker.sh
+if ! command -v docker >/dev/null 2>&1; then
+    echo "❌ Docker não encontrado. Instale pelo guia oficial:"
+    echo "   https://docs.docker.com/engine/install/"
+    exit 1
 fi
-echo "✅ Docker disponível: $(docker --version)"
-
-# 2. Verificar e instalar Docker Compose se necessário
-echo "📦 Verificando Docker Compose..."
-if ! docker compose version &> /dev/null && ! docker-compose version &> /dev/null; then
-    echo "🔧 Instalando Docker Compose..."
-    sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    sudo chmod +x /usr/local/bin/docker-compose
+if ! docker info >/dev/null 2>&1; then
+    echo "❌ O Docker não respondeu. Verifique se o serviço está ativo"
+    echo "   (sudo systemctl start docker) e se seu usuário está no grupo docker"
+    echo "   (sudo usermod -aG docker \$USER; depois saia e entre na sessão)."
+    exit 1
 fi
-echo "✅ Docker Compose disponível: $(docker compose version 2>/dev/null || docker-compose version)"
-
-# 3. Corrigir permissão do diretório TLS client (Erro EACCES: permission denied)
-echo "🔧 Corrigindo permissão do diretório TLS client..."
-sudo chown -R 1000:1000 "$PROJECT_DIR/data/omniroute"
-echo "✅ Permissão corrigida para UID 1000 (usuário node do container OmniRoute)"
-
-# 4. Corrigir typo no docker-compose.yml (opendands -> openhands)
-echo "🔧 Corrigindo typo no docker-compose.yml..."
-if grep -q "/home/opendands/.local" "$PROJECT_DIR/docker-compose.yml"; then
-    sed -i 's|/home/opendands/.local|/home/openhands/.local|g' "$PROJECT_DIR/docker-compose.yml"
-    echo "✅ Typo corrigido: opendands → openhands"
-else
-    echo "ℹ️  Typo já corrigido ou não encontrado"
+if ! docker compose version >/dev/null 2>&1; then
+    echo "❌ Plugin 'docker compose' (v2) não encontrado."
+    echo "   Instale o docker-compose-plugin pelo guia oficial acima."
+    exit 1
 fi
+for cmd in openssl curl; do
+    command -v "$cmd" >/dev/null 2>&1 || { echo "❌ '$cmd' não encontrado. Instale-o e rode de novo."; exit 1; }
+done
+for f in docker-compose.yml .env.example; do
+    [ -f "$f" ] || { echo "❌ Arquivo $f não encontrado em $STACK_DIR"; exit 1; }
+done
+echo "✅ $(docker --version)"
+echo "✅ $(docker compose version)"
 
-# 5. Adicionar bind mount do binário Docker para o container OpenHands
-echo "🔧 Configurando Docker CLI dentro do container OpenHands..."
-if ! grep -q "/usr/bin/docker:/usr/bin/docker:ro" "$PROJECT_DIR/docker-compose.yml"; then
-    sed -i '/- \.\/openhands-data:\/\/.openhands/a\      - /usr/bin/docker:/usr/bin/docker:ro' "$PROJECT_DIR/docker-compose.yml"
-    echo "✅ Bind mount do docker binary adicionado para OpenHands"
-else
-    echo "ℹ️  Bind mount do docker já configurado"
+# 2. Pastas e permissões ----------------------------------------------
+echo "📁 Preparando pastas..."
+mkdir -p data/omniroute projetos
+# O container do OmniRoute roda como UID 1000 (usuário node).
+if [ "$(stat -c '%u' data/omniroute)" != "1000" ]; then
+    echo "🔧 Ajustando dono de data/omniroute para UID 1000 (pede sudo)..."
+    sudo chown -R 1000:1000 data/omniroute
 fi
+echo "✅ Pastas prontas (data/omniroute, projetos)"
 
-# 6. Verificar estrutura de diretórios
-echo "📁 Verificando estrutura de diretórios..."
-mkdir -p "$PROJECT_DIR/data/omniroute"
-mkdir -p "$PROJECT_DIR/data/redis"
-mkdir -p "$PROJECT_DIR/data/qdrant"
-mkdir -p "$PROJECT_DIR/projetos"
-mkdir -p "$PROJECT_DIR/openhands-data"
-
-# 7. Gerar senhas fortes se .env não existir
-echo "🔑 Gerando chaves de segurança..."
+# 3. Arquivo .env e segredos ------------------------------------------
+echo "🔑 Preparando o .env..."
 if [ ! -f .env ]; then
     cp .env.example .env
-    echo "📋 Arquivo .env criado a partir do .env.example"
+    echo "📋 .env criado a partir do .env.example"
 fi
-if [ -f .env ]; then
-    source .env
+chmod 600 .env
+
+set_env() {
+    if grep -qE "^$1=" .env; then
+        sed -i "s|^$1=.*|$1=$2|" .env
+    else
+        [ -z "$(tail -c1 .env)" ] || echo >> .env
+        printf '%s=%s\n' "$1" "$2" >> .env
+    fi
+}
+
+# Define um valor padrão se a variável estiver ausente ou vazia (ex.: .env antigo).
+default_env() {
+    if [ -z "$(get_env "$1")" ]; then
+        set_env "$1" "$2"
+        echo "📝 $1 definido como padrão ($2)"
+    fi
+}
+
+gen_secret() {
+    if [ -z "$(get_env "$1")" ]; then
+        set_env "$1" "$(openssl rand -hex 32)"
+        echo "🔐 $1 gerado"
+    fi
+}
+
+# Não gera chave nova se já há dados criptografados com outra.
+if [ -z "$(get_env STORAGE_ENCRYPTION_KEY)" ] && [ -n "$(ls -A data/omniroute 2>/dev/null)" ]; then
+    echo "❌ STORAGE_ENCRYPTION_KEY está vazia, mas já existem dados em data/omniroute."
+    echo "   Uma chave nova deixaria as credenciais salvas ilegíveis."
+    echo "   Coloque a chave antiga no .env e rode de novo."
+    echo "   (Para recomeçar do zero, apague data/omniroute antes.)"
+    exit 1
 fi
 
-# 8. Definir senhas padrão se não definidas
-if [ -z "${INITIAL_PASSWORD}" ]; then
-    INITIAL_PASSWORD=$(openssl rand -hex 32)
-    sed -i "s|^INITIAL_PASSWORD=.*|INITIAL_PASSWORD=${INITIAL_PASSWORD}|" .env
-    echo "🔐 Senha inicial do dashboard gerada"
-fi
-if [ -z "${AUTH_TOKEN}" ]; then
-    AUTH_TOKEN=$(openssl rand -hex 32)
-    sed -i "s|^AUTH_TOKEN=.*|AUTH_TOKEN=${AUTH_TOKEN}|" .env
-    echo "🔐 Token de segurança gerado"
-fi
-if [ -z "${OMNIROUTE_WS_BRIDGE_SECRET}" ]; then
-    OMNIROUTE_WS_BRIDGE_SECRET=$(openssl rand -hex 32)
-    sed -i "s|^OMNIROUTE_WS_BRIDGE_SECRET=.*|OMNIROUTE_WS_BRIDGE_SECRET=${OMNIROUTE_WS_BRIDGE_SECRET}|" .env
-    echo "🔐 WebSocket bridge secret gerado"
+default_env OMNIROUTE_API_KEY dummy
+default_env OPENCODE_SERVER_USERNAME opencode
+
+gen_secret STORAGE_ENCRYPTION_KEY
+gen_secret REDIS_PASSWORD
+gen_secret INITIAL_PASSWORD
+gen_secret OMNIROUTE_WS_BRIDGE_SECRET
+gen_secret AI_MEMORY_AUTH_TOKEN
+gen_secret WEBUI_SECRET_KEY
+gen_secret OPENCODE_SERVER_PASSWORD
+
+if [ "$(get_env OPENCODE_SERVER_PASSWORD)" = "opencode" ]; then
+    echo "⚠️  OPENCODE_SERVER_PASSWORD ainda é 'opencode'. Troque por uma senha forte no .env."
 fi
 
-# 9. Pull da imagem do OpenHands
-echo "📦 Pull da imagem OpenHands..."
-docker pull ghcr.io/all-hands-ai/openhands:latest
+# 4. .gitignore -------------------------------------------------------
+touch .gitignore
+for entry in ".env" "data/"; do
+    grep -qxF "$entry" .gitignore || echo "$entry" >> .gitignore
+done
 
-# 10. Subir o stack
+# 5. Validar o compose ------------------------------------------------
+echo "🧪 Validando docker-compose.yml..."
+docker compose config -q
+echo "✅ Configuração válida"
+
+# 6. Subir o stack ----------------------------------------------------
 echo "🚀 Subindo o stack Docker..."
-sudo docker compose up -d
+docker compose up -d
 
-# 11. Aguardar e verificar status
-echo "⏳ Aguardando serviços inicializarem..."
-sleep 20
+echo "⏳ Aguardando o OmniRoute responder..."
+ready=0
+for _ in $(seq 1 30); do
+    if curl -fsS --max-time 3 -o /dev/null http://127.0.0.1:20129/v1/models 2>/dev/null; then
+        ready=1
+        break
+    fi
+    sleep 2
+done
+if [ "$ready" = 1 ]; then
+    echo "✅ OmniRoute respondendo"
+else
+    echo "⚠️  OmniRoute ainda não respondeu. Veja: docker compose logs -f omniroute"
+fi
 
 echo ""
-echo "📊 Status dos serviços:"
-docker compose ps
+bash "$STACK_DIR/scripts/health.sh" || true
 
 echo ""
 echo "=========================================="
-echo "✅ Stack IA configurado com sucesso!"
+echo "✅ Stack IA configurado!"
 echo "=========================================="
 echo ""
-echo "🌐 Acessos:"
+echo "🌐 Acessos (somente nesta máquina):"
 echo "   Open Web UI (chat):    http://localhost:3000"
+echo "   Open Code (agente):    http://localhost:3001"
 echo "   OmniRoute Dashboard:   http://localhost:20128"
 echo "   OmniRoute API:         http://localhost:20129/v1"
 echo "   Akita AI Memory MCP:   http://localhost:49374/mcp"
 echo ""
-echo "📁 Seus projetos ficam em: ./projetos/"
+echo "🔑 Logins ficam no .env (não os compartilhe):"
+echo "   grep -E '^(INITIAL_PASSWORD|OPENCODE_SERVER_USERNAME|OPENCODE_SERVER_PASSWORD)=' .env"
+echo ""
+echo "📁 Seus projetos ficam em ./projetos/ (no Open Code: /workspace/projetos)"
 echo ""
 echo "🔧 Comandos úteis:"
+echo "   Iniciar: ./scripts/start.sh"
 echo "   Parar:   ./scripts/stop.sh"
-echo "   Apagar:  ./scripts/nuke.sh"
 echo "   Health:  ./scripts/health.sh"
-echo ""
-echo "💡 Dicas:"
-echo "   • Acesse o dashboard em :20128 para adicionar mais provedores e modelos"
-echo "   • Crie skills e combos no dashboard para automação avançada"
-echo "   • Os logs do OmniRoute: docker compose logs -f omniroute"
-echo "   • Verificar estado: ./scripts/health.sh"
+echo "   Apagar:  ./scripts/nuke.sh --help"
+echo "   Logs:    docker compose logs -f omniroute"
 echo "=========================================="

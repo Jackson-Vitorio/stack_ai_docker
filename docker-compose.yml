@@ -65,9 +65,10 @@ services:
     ports:
       - "127.0.0.1:49374:49374"
     environment:
-      AI_MEMORY_AUTH_TOKEN: ${AI_MEMORY_AUTH_TOKEN:?defina AI_MEMORY_AUTH_TOKEN no .env}
+      AI_MEMORY_AUTH_TOKEN: ${AI_MEMORY_AUTH_TOKEN}
     volumes:
-      - akita-data:/data
+      - ./projetos:/workspace/projetos        # (mantenha o que já existe)
+      - ./opencode.jsonc:/root/.config/opencode/opencode.jsonc
 
   # ── Open WebUI (chat no navegador) ────────────────────────────────
   open-webui:

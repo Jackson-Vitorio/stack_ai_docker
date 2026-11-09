@@ -20,5 +20,17 @@
         "tllm/gpt_5_4": { "name": "GPT-5.4" }
       }
     }
+  },
+  "mcp": {
+    "servers": {
+      "ai-memory": {
+        "type": "remote",
+        "url": "http://akita-ai-memory:49374/mcp",
+        "oauth": false,
+        "headers": {
+          "Authorization": "Bearer {env:AI_MEMORY_AUTH_TOKEN}"
+        }
+      }
+    }
   }
 }

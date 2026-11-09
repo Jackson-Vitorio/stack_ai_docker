@@ -1,0 +1,36 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "omniroute/auto/best-coding",
+  "providers": {
+    "omniroute": {
+      "name": "OmniRoute",
+      "env": ["OMNIROUTE_API_KEY"],
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "http://omniroute:20129/v1"
+      },
+      "models": {
+        "auto/best-coding": { "name": "Best Coding" },
+        "auto/best-reasoning": { "name": "Best Reasoning" },
+        "auto/best-fast": { "name": "Best Fast" },
+        "auto/best-vision": { "name": "Best Vision" },
+        "auto/best-chat": { "name": "Best Chat" },
+        "tllm/openrouter_gpt_4_o_mini": { "name": "GPT-4o Mini" },
+        "tllm/claude_sonnet_4": { "name": "Claude Sonnet 4" },
+        "tllm/gpt_5_4": { "name": "GPT-5.4" }
+      }
+    }
+  },
+  "mcp": {
+    "servers": {
+      "ai-memory": {
+        "type": "remote",
+        "url": "http://akita-ai-memory:49374/mcp",
+        "oauth": false,
+        "headers": {
+          "Authorization": "Bearer {env:AI_MEMORY_AUTH_TOKEN}"
+        }
+      }
+    }
+  }
+}

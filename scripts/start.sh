@@ -2,6 +2,23 @@
 # Inicia o stack. Rode ./scripts/setup-auto.sh antes, na primeira vez.
 set -euo pipefail
 
+# Garante que o daemon Docker está rodando
+if ! docker info >/dev/null 2>&1; then
+    echo "🐳 Iniciando daemon Docker..."
+    sudo dockerd &
+    # Espera o socket ficar disponível
+    for i in $(seq 1 30); do
+        if docker info >/dev/null 2>&1; then
+            break
+        fi
+        sleep 1
+    done
+    if ! docker info >/dev/null 2>&1; then
+        echo "❌ Falha ao iniciar o daemon Docker." >&2
+        exit 1
+    fi
+fi
+
 cd "$(dirname "$0")/.."
 
 if [ ! -f .env ]; then

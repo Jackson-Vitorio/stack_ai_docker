@@ -98,7 +98,6 @@ gen_secret STORAGE_ENCRYPTION_KEY
 gen_secret REDIS_PASSWORD
 gen_secret INITIAL_PASSWORD
 gen_secret OMNIROUTE_WS_BRIDGE_SECRET
-gen_secret AI_MEMORY_AUTH_TOKEN
 gen_secret WEBUI_SECRET_KEY
 gen_secret OPENCODE_SERVER_PASSWORD
 
@@ -149,7 +148,6 @@ echo "   Open Web UI (chat):    http://localhost:3000"
 echo "   Open Code (agente):    http://localhost:3001"
 echo "   OmniRoute Dashboard:   http://localhost:20128"
 echo "   OmniRoute API:         http://localhost:20129/v1"
-echo "   Akita AI Memory MCP:   http://localhost:49374/mcp"
 echo ""
 echo "🔑 Logins ficam no .env (não os compartilhe):"
 echo "   grep -E '^(INITIAL_PASSWORD|OPENCODE_SERVER_USERNAME|OPENCODE_SERVER_PASSWORD)=' .env"

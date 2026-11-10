@@ -11,7 +11,6 @@ Ambiente local de IA para programação, em Docker Compose: roteador de LLMs, ch
 | **Open Code** | `open-code` | `http://localhost:3001` | Agente de programação com interface web (interface e API na mesma porta) |
 | **Redis** | `redis` | `localhost:6379` (exige senha) | Obrigatório pelo OmniRoute |
 | **Qdrant** | `qdrant` | `http://localhost:6333` (HTTP) · `6334` (gRPC) | Memória vetorial |
-| **Akita AI Memory** | `akita-ai-memory` | `http://localhost:49374/mcp` (exige token) | Memória de contexto + servidor MCP |
 
 **Não há IA local (Ollama) neste stack.** Para usar modelos de linguagem, cadastre as chaves dos provedores (OpenAI, Anthropic, Google, Groq, OpenRouter etc.) no dashboard do OmniRoute.
 
@@ -75,7 +74,7 @@ grep -E '^(INITIAL_PASSWORD|OPENCODE_SERVER_USERNAME|OPENCODE_SERVER_PASSWORD)='
 | Remover também as imagens | `./scripts/nuke.sh --images` |
 | Logs de um serviço | `docker compose logs -f omniroute` (ou `open-code`, `open-webui`…) |
 
-**Sobre o `nuke.sh`:** ele lista o que vai apagar e só continua se você digitar o nome da pasta. Ele apaga containers e os volumes `redis-data`, `qdrant-data`, `akita-data` e `open-webui-data` (conversas, memórias e cache). Com `--data`, apaga também `data/omniroute`. Ele **nunca** apaga a pasta do projeto, `./projetos`, o `.env`, o compose ou os scripts.
+**Sobre o `nuke.sh`:** ele lista o que vai apagar e só continua se você digitar o nome da pasta. Ele apaga containers e os volumes `redis-data`, `qdrant-data` e `open-webui-data` (conversas, memórias e cache). Com `--data`, apaga também `data/omniroute`. Ele **nunca** apaga a pasta do projeto, `./projetos`, o `.env`, o compose ou os scripts.
 
 Parar sem remover os containers: `./scripts/stop.sh`. Remover os containers preservando os volumes: `docker compose down`.
 
@@ -145,7 +144,6 @@ O `.env.example` é o modelo, com todos os segredos vazios de propósito: valore
 | `OMNIROUTE_WS_BRIDGE_SECRET` | OmniRoute | Segredo do bridge WebSocket |
 | `OMNIROUTE_API_KEY` | Open WebUI, Open Code | Chave dos clientes para chamar o OmniRoute (`dummy` serve se ele não exigir chave) |
 | `REDIS_PASSWORD` | Redis, OmniRoute | Senha do Redis |
-| `AI_MEMORY_AUTH_TOKEN` | Akita AI Memory | Token do servidor MCP |
 | `WEBUI_SECRET_KEY` | Open WebUI | Chave de assinatura das sessões |
 | `OPENCODE_SERVER_USERNAME` | Open Code | Usuário do login (padrão `opencode`) |
 | `OPENCODE_SERVER_PASSWORD` | Open Code | Senha do login |
@@ -183,7 +181,7 @@ No dashboard (`http://localhost:20128`) você configura:
 - **Provedores:** cadastre as chaves de API dos provedores que for usar.
 - **Combos:** rotas que combinam vários modelos (por exemplo as `auto/...` que aparecem em `/v1/models`, como `auto/coding`, `auto/fast` e `auto/chat`).
 - **Skills:** capacidades personalizadas para tarefas específicas.
-- **Conexões MCP:** por exemplo, o Akita AI Memory em `http://akita-ai-memory:49374/mcp` (de dentro da rede do Docker) com o `AI_MEMORY_AUTH_TOKEN`.
+- **Conexões MCP:** configure no Open Code/Open WebUI conforme necessário.
 
 ## Monitoramento
 
@@ -196,7 +194,7 @@ curl http://localhost:20129/v1/models    # a API responde?
 
 ## Backup e atualização
 
-**Backup:** o essencial é o `.env` (principalmente a `STORAGE_ENCRYPTION_KEY`) e a pasta `data/omniroute`. Os volumes `open-webui-data`, `qdrant-data`, `akita-data` e `redis-data` ficam gerenciados pelo Docker. Seus projetos estão em `./projetos/`.
+**Backup:** o essencial é o `.env` (principalmente a `STORAGE_ENCRYPTION_KEY`) e a pasta `data/omniroute`. Os volumes `open-webui-data`, `qdrant-data` e `redis-data` ficam gerenciados pelo Docker. Seus projetos estão em `./projetos/`.
 
 ```bash
 ./scripts/stop.sh
@@ -265,4 +263,4 @@ apptest/
 └── projetos/               # Área de trabalho do Open Code (/workspace/projetos)
 ```
 
-Os volumes `redis-data`, `qdrant-data`, `akita-data` e `open-webui-data` são gerenciados pelo Docker e não aparecem nesta árvore.
+Os volumes `redis-data`, `qdrant-data` e `open-webui-data` são gerenciados pelo Docker e não aparecem nesta árvore.

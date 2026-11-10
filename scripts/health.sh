@@ -40,8 +40,6 @@ check "Open Web UI (3000)"          curl -fsS --max-time 5 http://127.0.0.1:3000
 check "Open Code (3001)"            open_code_health
 check "Redis"                       redis_ping
 check "Qdrant (6333)"               curl -fsS --max-time 5 http://127.0.0.1:6333/healthz
-# Akita exige token no /mcp; qualquer resposta HTTP já prova que está no ar.
-check "Akita AI Memory (49374)"     curl -sS --max-time 5 -o /dev/null http://127.0.0.1:49374/
 
 echo ""
 echo "🌐 Acessos (somente nesta máquina):"

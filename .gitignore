@@ -9,7 +9,6 @@
 
 # ── Dados de runtime (criados pelo Docker Compose) ────────────
 data/
-ai-memory-data/
 ollama/
 qdrant-data/
 redis-data/

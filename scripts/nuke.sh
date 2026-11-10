@@ -32,8 +32,8 @@ fill_missing_env
 
 echo "⚠️  Isto vai APAGAR:"
 echo "   - os containers do stack"
-echo "   - os volumes: redis-data, qdrant-data, akita-data e open-webui-data"
-echo "     (conversas do Open WebUI, memória vetorial e do Akita, dados do Redis)"
+echo "   - os volumes: redis-data, qdrant-data e open-webui-data"
+echo "     (conversas do Open WebUI, memória vetorial e dados do Redis)"
 [ "$WIPE_DATA" = 1 ] && echo "   - ./data/omniroute (configuração e credenciais do OmniRoute)"
 [[ " ${DOWN_ARGS[*]} " == *" --rmi "* ]] && echo "   - as imagens Docker do stack"
 echo ""

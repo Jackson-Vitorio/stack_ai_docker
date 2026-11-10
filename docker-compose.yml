@@ -57,19 +57,6 @@ services:
     volumes:
       - qdrant-data:/qdrant/storage
 
-  # ── Akita AI Memory (memória de contexto + servidor MCP) ──────────
-  akita-ai-memory:
-    image: akitaonrails/ai-memory:latest
-    container_name: akita-ai-memory
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:49374:49374"
-    environment:
-      AI_MEMORY_AUTH_TOKEN: ${AI_MEMORY_AUTH_TOKEN}
-    volumes:
-      - ./projetos:/workspace/projetos        # (mantenha o que já existe)
-      - ./opencode.jsonc:/root/.config/opencode/opencode.jsonc
-
   # ── Open WebUI (chat no navegador) ────────────────────────────────
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
@@ -110,5 +97,4 @@ services:
 volumes:
   redis-data:
   qdrant-data:
-  akita-data:
   open-webui-data:
